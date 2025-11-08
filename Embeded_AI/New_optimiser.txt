@@ -1,0 +1,115 @@
+Changes done to simple back propogation and gradient descent 
+
+I'll break down the optimization algorithms and techniques I added to improve the neural network:
+
+1. **Gradient Descent with Momentum** (It seems like a low pass filter but for dC_wrt_dw and dC_wrt_db)
+In the gradient descent function, I implemented momentum optimization, which helps with:
+```python
+def gradient_descent(layer, dC_wrt_da, inpt, beta=0.9):
+    # ...
+    layer.weight_momentum = beta * layer.weight_momentum + (1 - beta) * dC_wrt_dw
+    layer.bias_momentum = beta * layer.bias_momentum + (1 - beta) * dC_wrt_db
+```
+- This is a first-order optimization algorithm that accelerates gradient descent
+- The β (beta) parameter = 0.9 determines how much previous gradients influence the current update
+- Works like a ball rolling down a hill - accumulates "velocity" in directions of consistent gradients
+- Helps escape local minima and speeds up convergence
+- The momentum term acts as a moving average of gradients
+
+2. **Adaptive Learning Rate**
+In backprop, I added learning rate decay:
+```python
+alpha = max(initial_alpha / (1 + epoch/1000), min_alpha)
+```
+- Starts with larger learning rate for faster initial progress
+- Gradually decreases to allow fine-tuning
+- The denominator (1 + epoch/1000) controls decay speed
+- min_alpha prevents learning rate from becoming too small
+
+3. **Early Stopping**
+```python
+if network_cost < best_cost:
+    best_cost = network_cost
+    patience_counter = 0
+else:
+    patience_counter += 1
+    
+if patience_counter > patience:
+    print(f"Early stopping at epoch {epoch}")
+    break
+```
+- Monitors training progress
+- Stops if cost hasn't improved for 'patience' number of epochs
+- Prevents overfitting by stopping when learning plateaus
+- Saves computation time
+
+4. **He Initialization**
+```python
+self.weights = np.random.randn(num_neurons, previous_layer_length) * np.sqrt(2.0 / previous_layer_length)
+```
+- Special weight initialization for ReLU networks
+- Keeps variance of activations constant across layers
+- Helps prevent vanishing/exploding gradients
+- The sqrt(2/n) factor is specifically derived for ReLU
+
+5. **Input Normalization**
+```python
+input_data = (input_data - np.mean(input_data)) / np.std(input_data)
+```
+- Centers data around zero
+- Scales to unit variance
+- Makes training more stable
+- Particularly important for ReLU to prevent dead neurons
+
+6. **Modified Architecture**
+```python
+layer_list = [
+    Layer(1, 64),    
+    Layer(64, 128),  
+    Layer(128, 64),  
+    Layer(64, 32),   
+    Layer(32, 1)     
+]
+```
+- Deeper network with gradually changing widths
+- Wider layers allow more feature learning
+- Gradual reduction helps maintain important features
+- Multiple layers allow hierarchical feature learning
+
+The complete training process works like this:
+
+1. **Forward Pass**:
+   - Input data is normalized
+   - Each layer computes: Z = XW + b
+   - ReLU activation: max(0, Z)
+   - Output passes through all layers
+
+2. **Backward Pass**:
+   - Compute cost: mean squared error
+   - Calculate gradients from output to input
+   - For each layer:
+     - Compute gradient of cost with respect to weights and biases
+     - Update momentum terms
+     - Apply momentum-based updates to weights and biases
+   - Learning rate decreases over time
+   - Early stopping checks if training should continue
+
+3. **Weight Updates**:
+   - Momentum accumulates previous gradients
+   - New weights = old weights - (learning rate × momentum)
+   - Similar update for biases
+
+This combines several optimization techniques:
+- Momentum for faster convergence
+- Adaptive learning rate for better final results
+- Early stopping to prevent overfitting
+- Proper initialization for stable training
+- Normalization for consistent gradients
+
+The key improvement over standard gradient descent is the addition of momentum, which helps:
+- Smooth out oscillations in gradient updates
+- Accelerate progress in consistent directions
+- Overcome small local minima
+- Handle noisy gradients better
+
+Would you like me to elaborate on any of these aspects or explain how they specifically help with the sine wave approximation task?
